@@ -118,16 +118,18 @@ n_seis = 20  # número de sismómetros de entrada de SPECFEM
 
 # %% Otros parametros de propagación
 
+# Modelo de velocidad constante
+c = 3000
+
+alpha_true0 = np.ones((Nz, Nx)) * c
+
 ax_spec = 1.5  # tamaño del dominio en specfem antes de eliminar las regiones absorbentes
 az_spec = 0.5
 xsf = 1.3  # x ubicación de todos los sismómetros en specfem
 
-# Se define la velocidad verdadera del subsuelo (Modelo PINN)
-alpha_true = np.load(path_modelo_original).astype("float32") * 1000
-
 dh = ax_spec / Nx  # Tamaño de la celda
 dx = dz = dh
-dt = dh * 1000 / (np.amax(alpha_true) * np.sqrt(2))  # Intervalo temporal
+dt = dh * 1000 / (np.amax(alpha_true0) * np.sqrt(2))  # Intervalo temporal
 # dt /= 2
 s_spec = 5e-5  # Paso de tiempo de specfem (0.05 ms)
 
@@ -168,6 +170,9 @@ t_total = Nt * dt
 
 # %% Este bloque solo funciona para cargar el modelo de velocidad de Rash
 
+# Se define la velocidad verdadera del subsuelo (Modelo PINN)
+alpha_true = np.load(path_modelo_original).astype("float32") * 1000
+
 # Re escalado de alpha true al tamaño del modelo de entrenamiento
 x_zoom = (ax/dx) / alpha_true.shape[0]
 z_zoom = (az/dz) / alpha_true.shape[1]
@@ -182,6 +187,15 @@ alpha_true1 = np.pad(alpha_true0, ((0, int(Nz-az/dz)), (0,int(Nx-ax/dx))), mode=
 output_file = open(velocity_path_bin, "wb")
 alpha_true1.T.tofile(output_file)
 output_file.close()
+
+#%% Modelo de velocidad (para otros experimentos)
+# alpha_true1 = velocidad_eliptica(Nx, Nz, pos_x=Sx, pos_z=90, 
+#                                  eje_mayor=70, eje_menor=30, vel=2.5, bg_vel=3)*1000
+
+# # Se exporta el archivo binario para leer en C
+# output_file = open(velocity_path_bin, "wb")
+# alpha_true1.T.tofile(output_file)
+# output_file.close()
 
 # %% Plot modelo para entrenamiento
 n_ini = 50
@@ -256,6 +270,7 @@ def lanzar_propagacion():
         "[[Sz]]": f"{Sz}",
         "[[dh]]": f"{dh*1000}",
         "[[Tout]]": f"{Nt}",
+        "[[c]]": f"{float(c)}",
         "[[n_abs]]": f"{float(n_abs)}",
         "[[velocity_path]]": f'"{velocity_path_c}"',
     }
