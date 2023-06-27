@@ -11,8 +11,8 @@ int main()
 {
   int Nx = 450;
   int Nz = 150;
-  int Sx = 225;
-  int Sz = 30;
+  int Sx = 150;
+  int Sz = 75;
   int Tout = 650;
   int i, j;
   float c_max = 0.0;
@@ -23,7 +23,7 @@ int main()
   float fq = 16; // Play for dispersion from 10 to 100
   float dt = 0.0;
 
-  int borde = 15.0; // amount of CPML grid points
+  int borde = 20.0; // amount of CPML grid points
   CPML *cpml = malloc(sizeof(CPML));
   cpml->n_cpml_x = borde;
   cpml->n_cpml_z = borde;
@@ -40,12 +40,12 @@ int main()
   // {
   //   for (j = 0; j < Nz; j++)
   //   {
-  //     IdS(c, i, j) = 3000.0;
+  //     IdS(c, i, j) = [[c]];
   //   }
   // }
 
   // Leer la matriz desde el archivo binario
-  FILE *archivo = fopen("../experimentos/experimento_6/velocity_models/modelo_velocidad_6.bin", "rb");
+  FILE *archivo = fopen("../experimentos/experimento_5/velocity_models/modelo_velocidad_5.bin", "rb");
 
   if (archivo == NULL)
   {

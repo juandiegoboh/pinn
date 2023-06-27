@@ -54,8 +54,7 @@ velocity_path_c = velocity_path_bin.split("\\")[-4:]
 velocity_path_c = "/".join(velocity_path_c)
 velocity_path_c = f"../{velocity_path_c}"
 
-# path_modelo_original = "event1/modelo_vel.npy"
-path_modelo_original = os.path.join(path_experimento, f"velocity_models/modelo_vel.npy")
+path_modelo_original = "event1/modelo_vel.npy"
 
 path_wavefield_jd = os.path.join(path_experimento, "wavefields")
 path_seismograms_jd = os.path.join(path_experimento, "seismograms")
@@ -107,9 +106,7 @@ Nx = Nz * 3  # Puntos del modelo en x (en specfem es 100)
 Nt = 650  # Puntos del modelo en t
 tipo_fuente = "gaussian_neg" # gaussian, ricker, gaussian-neg
 
-n_abs = (
-    15  # nodos para absorber condiciones de frontera en ambas direcciones de specfem
-)
+n_abs = 20  # nodos para absorber condiciones de frontera en ambas direcciones de specfem
 n_absx = n_abs  # nodos del lado izquierdo del dominio
 n_absz = n_abs  # el límite superior no absorbe
 
@@ -128,34 +125,29 @@ alpha_true = np.load(path_modelo_original).astype("float32") * 1000
 dh = ax_spec / Nx  # Tamaño de la celda
 dx = dz = dh
 dt = dh * 1000 / (np.amax(alpha_true) * np.sqrt(2))  # Intervalo temporal
-# dt /= 2
 s_spec = 5e-5  # Paso de tiempo de specfem (0.05 ms)
 
 # Coordenadas de la fuente (en indices de la matriz)
-Sx = int(Nx / 2)
-Sz = int(Nz / 5)
+Sx = int(Nx / 3)
+Sz = int(Nz / 2)
 
 # Coordenadas en metros de la fuente
 sx_m, sz_m = Sx*dx*1000, Sz*dz*1000
 
-# dimensión del dominio en la dirección x para entrenamiento de PINNs. Tenga en cuenta que
-# ax = xsf-n_absx*dx
+# Dimensión del dominio para entrenamiento de PINNs.
 ax = xsf - n_absx * dx
-# solo se elimina el grosor del la frontera absorbente de la izquierda ya que #xsf es (debe ser) más pequeño que donde comienza la frontera absorbente del lado derecho
-az = az_spec - n_absz * dz  # dimensión del dominio en la dirección z
+# solo se elimina el grosor del la frontera absorbente de la izquierda ya que #xsf es (debe ser) más pequeño que donde comienza la frontera absorbente del lado derecho.
+az = az_spec - n_absz * dz  # dimensión del dominio en la dirección z (se elimina solo la frontera de abajo)
 
-# ------------------- Sismometros -------------------#
+# ------------------- Sismometros Marco PINN -------------------#
 # z ubicación del primer sismómetro de SPECFEM en el marco de referencia de PINN. Aquí debe estar en km mientras que en SPECFEM está en metros.
-z0_s = az
-
-zl_s = (
-    0.06 - n_absz * dz
-)  # z ubicación del último sismómetro en profundidad. esto no tiene que ser cero y puede ser mayor, especialmente si tiene una frontera absorbente en la parte inferior
+z0_s = 0.45
+zl_s = 0.06 - 10 * dz # z ubicación del último sismómetro en profundidad. Esto no tiene que ser cero y puede ser mayor, especialmente si tiene una frontera absorbente en la parte inferior
 
 # Coordenadas receptores
 xsf_arr = np.array([xsf] * n_seis)
 zsf = np.linspace(z0_s, zl_s, n_seis)
-# --------------------------------------------------#
+# --------------------------------------------------------------#
 
 t01 = 2000 * s_spec  # disposición inicial en este momento de specfem. Primer snap
 t02 = 2300 * s_spec  # segunda disposición "inicial". Segundo snap
@@ -183,12 +175,12 @@ output_file = open(velocity_path_bin, "wb")
 alpha_true1.T.tofile(output_file)
 output_file.close()
 
-# %% Plot modelo para entrenamiento
+# %% Plot modelo para entrenamiento - Original SPECFEM
 n_ini = 50
 
 Lx = Lz = 3
-xx, zz = np.meshgrid(np.linspace(0, ax, n_ini), 
-                       np.linspace(0, az, n_ini))
+xx, zz = np.meshgrid(np.linspace(0, 1.25, n_ini), 
+                       np.linspace(0, 0.45, n_ini))
 
 fig = plt.figure()
 plt.contourf(xx, zz, alpha_true.reshape((xx.shape)), 100, cmap="jet")
@@ -210,6 +202,17 @@ plt.close(fig)
 # %% Plot modelo interpolado (usado en la propagación)
 
 xxs, zzs = np.meshgrid(np.linspace(0, Nx, Nx), np.linspace(0, Nz, Nz))
+
+# ------------------- Sismometros Marco propio -------------------#
+# Se debe hacer una ubicación absoluta de los sismogramas
+
+z0_s = az_spec - 0.003      # z ubicación del 1er sismómetro, 3m debajo de la superficie.
+zl_s = 0.01 + n_absz * dz   # z ubicación del último sismómetro, 10m antes de la cpml.
+
+# Coordenadas receptores
+xsf_arr = np.array([xsf] * n_seis)
+zsf = np.linspace(z0_s, zl_s, n_seis)
+# ---------------------------------------------------------------#
 
 fig = plt.figure()
 plt.contourf(xxs * dx, zzs * dz,
@@ -344,12 +347,6 @@ for i in range(len(num_snaps)):
         save=True,
         field_name="snap",
     )
-
-    # Calculo del laplaciano
-    laplacian = laplace(P, mode="nearest")
-
-    # plot_campo(laplacian, xxs, zzs, dx, dz, title=r'$\nabla^2 \phi$',
-    #             snap=i+1, save=True, field_name='laplaciano')
 
 
 # %% Componentes del campo
@@ -523,8 +520,12 @@ parametros_basicos = {
     "Numero sismometros": n_seis,
     "Tamaño celda x": dx,
     "Tamaño celda z": dz,
+    "Paso temporal": dt,
     "Coord x fuente": sx_m,
     "Coord z fuente": sz_m,
+    "t01": t01,
+    "t02": t02,
+    "t03": t_la,
     }
 
 parametros_log = {

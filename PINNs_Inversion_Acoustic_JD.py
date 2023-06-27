@@ -6,14 +6,13 @@ from SALib.sample import sobol_sequence
 import os
 import scipy.interpolate as interpolate
 import timeit
-import time
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import tensorflow.compat.v1 as tf
 import pandas as pd
 
-from _global import carpeta_img, numero_experimento, path_folder
+from _global import numero_experimento, path_folder
 
 # %% Rutas
 
@@ -29,6 +28,7 @@ campos_spec = os.path.join(eventos_spec, "wavefields")
 sismos_jd = os.path.join(path_experimento, "seismograms/")
 campos_jd = os.path.join(path_experimento, "wavefields/")
 
+# Lectura de parámetros de propagación
 df = pd.read_csv(path_parametros)
 
 #%% Ruta para guardar el resultado del entrenamiento
@@ -45,15 +45,16 @@ z = tf.placeholder(tf.float64, shape=(None, 1))
 t = tf.placeholder(tf.float64, shape=(None, 1))
 
 # %%
-nx = 450  # número de nodos a lo largo del eje x. utilizado aquí para eliminar las regiones absorbentes de specfem del dominio computacional de la PINN
-nz = 150
+nx = df["Puntos X"][0]  # número de nodos a lo largo del eje x. utilizado aquí para eliminar las regiones absorbentes de specfem del dominio computacional de la PINN
+nz = df["Puntos Z"][0]
 
-n_abs = 15  # de nodos para absorber condiciones de frontera en ambas direcciones de specfem
-n_absx = n_abs  # nodos del lado izquierdo del dominio
-n_absz = n_abs  # el límite superior no absorbe
+n_abs = df["Nodos abs"][0]  # de nodos para absorber condiciones de frontera
 
-ax_spec = 1.5  # tamaño del dominio en specfem antes de eliminar las regiones absorbentes
-az_spec = 0.5
+n_absx = n_abs  # nodos del lado izquierdo
+n_absz = n_abs  # nodos del lado inferior
+
+ax_spec = df["Tamaño X"][0]/1000  # tamaño del dominio antes de eliminar las regiones absorbentes
+az_spec = df["Tamaño Z"][0]/1000
 xsf = 1.3  # x ubicación de todos los sismómetros en specfem
 
 dx = ax_spec/nx
@@ -68,13 +69,13 @@ t_m = 0.5  # tiempo total para el entrenamiento de la PDE.
 t_st = 0.1  # aquí es cuando se toma el primer I.C de specfem
 t_s = 0.5  # serie de tiempo total utilizada de los sismogramas
 
-s_spec = 7.856742e-04  # paso de tiempo de specfem (0.05 ms)
-t01 = 127*s_spec  # disposición inicial en este momento de specfem
-t02 = 146*s_spec  # segunda disposición "inicial" en este momento desde specfem en lugar de forzar la velocidad inicial
-t_la = 318*s_spec  # datos de prueba para comparar specfem y PINN entrenados
+s_spec = 7.856742e-04  # paso de tiempo
+t01 = df["t01"][0]  # disposición inicial en este momento de specfem
+t02 = df["t02"][0]  # segunda disposición "inicial" en este momento desde specfem
+t_la = df["t03"][0]  # datos de prueba para comparar specfem y PINN entrenados
 
 n_event = 1  # numero de eventos sísmicos
-n_seis = 20  # número de sismómetros de entrada de SPECFEM; si los eventos tienen diferentes números de sismómetros, se deben cambiar las líneas que contienen n_seis
+n_seis = df["Numero sismometros"][0]  # número de sismómetros; si los eventos tienen diferentes números de sismómetros, se deben cambiar las líneas que contienen n_seis
 z0_s = az  # z ubicación del primer sismómetro de SPECFEM en el marco de referencia de PINN. Aquí debe estar en km mientras que en SPECFEM está en metros. Tenga en cuenta que aquí asumimos que los sismómetros NO están todos en la superficie y están en una línea vertical con la misma x; el primer sismómetro está en la superficie y el siguiente va más profundo
 
 zl_s = 0.06-n_absz*dz  # z ubicación del último sismómetro en profundidad. esto no tiene que ser cero y puede ser mayor, especialmente si tiene una frontera absorbente en la parte inferior, cámbielo según lo que haya usado de specfem
@@ -402,7 +403,7 @@ d_s = np.abs((zl_s-z0_s))/(n_seis-1)  # distancia entre sismometros
 
 for i in range(len(seismo_listz)):
     X_S[i*l_sub:(i+1)*l_sub, ] = np.concatenate((ax/Lx*np.ones((l_sub, 1), dtype=np.float64),
-                                                 (z0_s-i*d_s)/Lz*np.ones((l_sub, 1),
+                                                 (z0_s-i*d_s)/Lz*np.ones((l_sub, 1),                                                                     
                                                                          dtype=np.float64),
                                                  t_spec_sub), axis=1)
 
