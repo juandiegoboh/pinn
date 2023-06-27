@@ -1,5 +1,11 @@
-*
+# Todo lo demás
+/*
 *.pyc
 __pycache__/
+
+# Elementos tipo python
 !*.py
 !.gitignore
+# Elementos de la propagacion en C
+!/propagation-cpml-C/
+/propagation-cpml-C/*.bin
