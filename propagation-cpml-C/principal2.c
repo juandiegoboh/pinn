@@ -45,7 +45,7 @@ int main()
   // }
 
   // Leer la matriz desde el archivo binario
-  FILE *archivo = fopen("../experimentos/experimento_5/velocity_models/modelo_velocidad_5.bin", "rb");
+  FILE *archivo = fopen("../experimentos/experimento_6/velocity_models/modelo_velocidad_6.bin", "rb");
 
   if (archivo == NULL)
   {

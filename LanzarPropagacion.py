@@ -18,7 +18,6 @@ from pytictoc import TicToc
 from multireplace import multireplace
 from datetime import datetime
 from scipy.ndimage import zoom
-from scipy.ndimage import laplace
 from prettytable import PrettyTable
 
 from CreacionModeloVelocidad import velocidad_eliptica
@@ -204,7 +203,7 @@ plt.close(fig)
 xxs, zzs = np.meshgrid(np.linspace(0, Nx, Nx), np.linspace(0, Nz, Nz))
 
 # ------------------- Sismometros Marco propio -------------------#
-# Se debe hacer una ubicación absoluta de los sismogramas
+ # Se debe hacer una ubicación absoluta de los sismogramas
 
 z0_s = az_spec - 0.003      # z ubicación del 1er sismómetro, 3m debajo de la superficie.
 zl_s = 0.01 + n_absz * dz   # z ubicación del último sismómetro, 10m antes de la cpml.
@@ -290,7 +289,7 @@ def lanzar_propagacion():
     tiempo = t.tocvalue()
     print(f"Tiempo de propagación {tiempo} segundos")
     
-    return  tiempo
+    return tiempo
 
 
 tiempo_propagacion = lanzar_propagacion()

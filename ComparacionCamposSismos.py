@@ -19,14 +19,11 @@ from matplotlib.patches import Rectangle
 from pytictoc import TicToc
 from textwrap import fill
 
-from _global import carpeta_img, numero_experimento, path_folder
+from _global import carpeta_img, path_folder, path_experimento, path_imgs
 
 # %% Rutas
 
-path_experimento = os.path.join(path_folder, f"experimentos\{numero_experimento}")
 path_parametros = os.path.join(path_experimento, "datos_propagacion.csv")
-
-path_imgs = os.path.join(path_experimento, "images")
 
 eventos_spec = os.path.join(path_folder, "event1")
 
