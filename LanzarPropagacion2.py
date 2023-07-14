@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from CreacionModeloVelocidad import ModeloVelocidad
 from scipy.ndimage import zoom
 from PropagacionAcustica import PropagacionAcustica
-from _global import carpeta_img, path_folder, modelo_vel_name, path_experimento, path_imgs, path_wavefield, path_velocity
+from _global import path_experimento, path_seismograms, path_imgs, path_wavefield, path_velocity
+from prettytable import PrettyTable
 
 #%%
 # Carpeta del experimento
@@ -58,30 +59,35 @@ ax = xsf - n_absx * dx
 az = az_spec - n_absz * dz 
 
 #%% Modelo de velocidad 
-velocidad = ModeloVelocidad(nx, nz)
+velocidad = ModeloVelocidad(nx, nz, dx, dz, sx, sz)
 
 # Modelo de Rash
-alpha_true1 = velocidad.cargar_modelo_zoom("event1/modelo_vel.npy", ax/dx, az/dz, path_velocity)
+alpha_true1 = velocidad.cargar_modelo_zoom("event1/modelo_vel.npy", ax/dx, az/dz)
+
+velocidad.plot_vel(path_imgs, "alpha_true0_original", True)
 
 #%% Propagacion
-propagacion = PropagacionAcustica(fq, nz, nx, nt, sx, sz, dh, dt, tipo_fuente, n_abs, path_velocity)
-# propagacion.lanzar_propagacion()
+propagacion = PropagacionAcustica(fq, nz, nx, nt, ax_spec, az_spec, sx, sz, dh, 
+                                  dt, tipo_fuente, n_abs, alpha_true1, path_velocity)
+
+propagacion.lanzar_propagacion()
 
 #%% Cubo
-cubo = propagacion.obtener_datos()
+cubo = propagacion.obtener_datos()  # Esta funcion también calcula los gradientes para las componentes
 
 #%% Obtener snapshots
 t01 = 0.1
 t02 = 0.115
 t_la = 0.25
-propagacion.snapshots(cubo, [t01, t02, t_la], save=True, path=path_imgs)
 
-#%% Obtener componentes
-componentes = propagacion.componentes_campo(cubo, [t01, t02, t_la], save=True, export=True,
+propagacion.plot_snapshots([t01, t02, t_la], save=True, path=path_imgs)
+
+#%% Obtener componentes - Las componentes vienen escaladas con base al número de snaps
+componentes = propagacion.componentes_campo([t01, t02, t_la], save=True, export=True,
                               path_export=path_wavefield, path=path_imgs)
 
 #%% Extraer coordenadas
-coordenadas = propagacion.coordenadas_campo(ax_spec, az_spec, export=True, 
+coordenadas = propagacion.coordenadas_campo(export=True, 
                                             path_export=path_wavefield)
 
 #%% Ver modelo 3D
@@ -90,24 +96,24 @@ coordenadas = propagacion.coordenadas_campo(ax_spec, az_spec, export=True,
 #%% Sismogramas
 # Posiciones de los sismogramas en coordenadas
 n_seis = 20
-xsf_arr = np.array([1.3] * n_seis)
-zsf = np.linspace(0, az, 20)
 
-xsf_id, zsd_id = propagacion.sismogramas(cubo, ax_spec, az_spec, xsf_arr, zsf)
-coordenadas = list(zip(zsd_id, xsf_id))
+z0_s = az_spec - 0.003      # z ubicación del 1er sismómetro, 3m debajo de la superficie.
+zl_s = 0.01 + n_absz * dz   # z ubicación del último sismómetro, 10m antes de la cpml.
 
-matriz = cubo[:,:,150]
-mascara = np.zeros_like(matriz, dtype=bool)
-mascara[tuple(zip(*coordenadas))] = True
+xsf = 1.3 # Posicion x de los sismogramas
 
-matriz_enmascarada = np.ma.masked_array(matriz, mask=mascara)
+xsf_arr = np.array([xsf] * n_seis)
+zsf = np.linspace(z0_s, zl_s, n_seis)
 
-plt.figure()
-im = plt.imshow(matriz_enmascarada)
+sismogramas_x, sismogramas_z = propagacion.sismogramas(xsf_arr, zsf)
+propagacion.exportar_sismogramas(n_seis, path_seismograms)
 
-# Aplicar la máscara de color al gráfico
-# im.set_cmap('Set1')  # Establecer el mapa de colores (puedes elegir cualquier otro mapa)
-# im.set_clim(0, 9)  # Establecer los límites de color (ajústalos según tus necesidades)
+#%% Plot del modelo con los sismogramas
+propagacion.plot_xz_sismogramas(xsf_arr, zsf, path_imgs)
 
-plt.colorbar(im)
-plt.show()
+#%% Exportar parametros de la propagacion
+propagacion.exportar_parametros(path_experimento)
+propagacion.exportar_csv(path_experimento)
+
+
+

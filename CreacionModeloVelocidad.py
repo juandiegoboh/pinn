@@ -12,9 +12,19 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
 #%%
 class ModeloVelocidad:
-    def __init__(self, nx, nz):
+    def __init__(self, nx, nz, dx, dz, sx, sz):
         self.nx = nx
         self.nz = nz
+        self.dx = dx
+        self.dz = dz
+        self.sx = sx
+        self.sz = sz
+        
+        # Coordenadas de Receptores
+        self.xsf_arr = []
+        self.zsf_arr = []
+        
+        self.modelo = ''
 
 
     def velocidad_circular(self, pos_x, pos_z, radio, velocidad, background_vel):
@@ -31,6 +41,7 @@ class ModeloVelocidad:
                 if distancia_al_centro <= radio:
                     velocidades[i, j] = velocidad
                     
+        self.modelo = velocidades        
         return velocidades
     
     
@@ -50,10 +61,11 @@ class ModeloVelocidad:
                 if distancia_normalizada <= 1:
                     velocidades[i, j] = vel
                     
+        self.modelo = velocidades
         return velocidades
     
     
-    def cargar_modelo_zoom(self, path_orig, size_x, size_z, path_dest, order=1):
+    def cargar_modelo_zoom(self, path_orig, size_x, size_z, order=1):
         alpha_true = np.load(path_orig).astype("float32") * 1000
         
         # Re escalado de alpha true al tamaño del modelo de entrenamiento
@@ -69,7 +81,7 @@ class ModeloVelocidad:
         
         
         # Se exporta el archivo binario para leer en C
-        self.save_bin(alpha_true1, path_dest)
+        self.modelo = alpha_true1
         
         return alpha_true1
     
@@ -78,3 +90,26 @@ class ModeloVelocidad:
         output_file = open(path_dest, "wb")
         data.T.tofile(output_file)
         output_file.close()
+    
+    
+    def plot_vel(self, path_dest, name, save):
+        xxs, zzs = np.meshgrid(np.linspace(0, self.nx, self.nx), np.linspace(0, self.nz, self.nz))
+        
+        fig = plt.figure()
+        plt.contourf(xxs * self.dx, zzs * self.dz,
+                     self.modelo.reshape((xxs.shape)), 100, cmap="jet")
+        plt.colorbar()
+        plt.xlabel("x")
+        plt.ylabel("z")
+        plt.title(r"Modelo de velocidad ($\alpha$)" + f" - {self.nz}x{self.nx}")
+        plt.scatter(self.sx * self.dx, self.sz * self.dz, c="k", label="Fuente")
+        if self.xsf_arr:
+            plt.plot(self.xsf_arr, self.zsf_arr, "r*", markersize=4, label="Receptores")
+        plt.axis("scaled")
+        
+        plt.legend(loc='best', fontsize='small')
+        plt.show()
+        
+        if save:
+            plt.savefig(f"{path_dest}\\{name}.png", bbox_inches="tight", dpi=320)
+                

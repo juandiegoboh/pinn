@@ -6,17 +6,19 @@ from SALib.sample import sobol_sequence
 import os
 import scipy.interpolate as interpolate
 import timeit
+
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.colors as mcolors
+
 import numpy as np
 import pickle
 import tensorflow.compat.v1 as tf
 import pandas as pd
 from Compute_Jacobian import jacobian
 
-from _global import path_folder
-
+from _global import numero_experimento, path_folder
 # %% Rutas
-numero_experimento = 'experimento_5_ntk'
 path_experimento = os.path.join(path_folder, f"experimentos\{numero_experimento}")
 path_entrenamiento = os.path.join(path_folder, f"{path_experimento}/entrenamientoPINN")
 path_parametros = os.path.join(path_experimento, "datos_propagacion.csv")
@@ -147,7 +149,7 @@ weights = [xavier_init([layers[l], layers[l+1]]) for l in range(0, L-1)]
 biases = [tf.Variable(tf.zeros((1, layers[l+1]), dtype=tf.float64))
           for l in range(0, L-1)]
 # num_epoch = 10000001
-num_epoch = 100001
+num_epoch = 1000
 
 # %%
 # capas para que la segunda NN que aproxima la velocidad de la onda (alpha)
@@ -242,12 +244,6 @@ xxzzs = np.concatenate((xxs.reshape((-1, 1)), zzs.reshape((-1, 1))), axis=1)
 
 u_scl = 1/1  # escalar los datos de salida para cubrir el intervalo [-1 1]
 
-#%%
-# fig = plt.figure()
-# plt.scatter(xxs*Lx, zzs*Lz, s=0.3)
-# plt.show()
-# plt.close(fig)
-
 # %%
 # cargando los campos de ondas desde specfem
 wfs = sorted(os.listdir(campos_jd))
@@ -298,7 +294,7 @@ plt.title(f'Scaled I.C total disp. t={t01:.3f}')
 plt.colorbar()
 plt.axis('scaled')
 plt.savefig(f'{path_entrenamiento}/Ini_total_disp_spec_sumEvents.png', dpi=400)
-plt.show()
+# plt.show()
 plt.close(fig)
 
 # %%
@@ -311,7 +307,7 @@ plt.title(f'Scaled sec I.C total disp. t={t02:.3f}')
 plt.colorbar()
 plt.axis('scaled')
 plt.savefig(f'{path_entrenamiento}/sec_wavefield_input_spec_sumEvents.png', dpi=400)
-plt.show()
+# plt.show()
 plt.close(fig)
 
 # %%
@@ -324,7 +320,7 @@ plt.title(f'Test data: Total displacement t={round(t_la-t01, 4)}')
 plt.colorbar()
 plt.axis('scaled')
 plt.savefig(f'{path_entrenamiento}/total_disp_spec_testData_sumEvents.png', dpi=400)
-plt.show()
+# plt.show()
 plt.close(fig)
 ###############################################################
 
@@ -488,6 +484,19 @@ loss_seism = tf.reduce_mean(tf.square(ux[(N1+N2+N3):(N1+N2+N3+N4), 0:1]-Sx)) \
 
 loss_BC = tf.reduce_mean(tf.square(P[(N1+N2+N3+N4):, 0:1]))
 
+#%%
+#### dictionaries#############################################
+xx0, zz0 = xx.reshape((-1,1)), zz.reshape((-1,1))
+
+X_eval01=np.concatenate((xx0,zz0,0*np.ones((xx0.shape[0],1))),axis=1)#evaluating PINNs at time=0
+X_eval02=np.concatenate((xx0,zz0,(t02-t01)*np.ones((xx0.shape[0],1))),axis=1)#evaluating PINNs at time when the second input from specfem is provided
+X_evalt=np.concatenate((xx0,zz0,(t_la-t01)*np.ones((xx0.shape[0],1))),axis=1)#evaluating PINNs at a later time>0
+
+feed_dict01 = { x: X_eval01[:,0:1], z: X_eval01[:,1:2], t: X_eval01[:,2:3]}#this dictionary is for evaluating the initial condition recovered from PINNs on new test points other than the ones used for training
+feed_dict02 = { x: X_eval02[:,0:1], z: X_eval02[:,1:2], t: X_eval02[:,2:3]}#this dictionary is for evaluating the initial condition recovered from PINNs on new test points other than the ones used for training
+feed_dict2 = { x: X_evalt[:,0:1], z: X_evalt[:,1:2], t: X_evalt[:,2:3]}#this dictionary is for evaluating PINNs at a later time>0
+feed_dict_seism={ x: X_S[:,0:1], z: X_S[:,1:2], t: X_S[:,2:3]}
+
 #%% ############################## Pesos ##############################
 # Compute Jacobian for each weights and biases in each layer and retrun a list 
 
@@ -545,7 +554,7 @@ K_eq = compute_ntk(J_eq, x_eq_ntk_tf, J_eq, x_eq_ntk_tf)
 K_ux = compute_ntk(J_ux, x_ux_ntk_tf, J_ux, x_ux_ntk_tf)
 K_uz = compute_ntk(J_uz, x_uz_ntk_tf, J_uz, x_uz_ntk_tf)
 
-#%% -- Revisar --
+#%% Puntos en donde se calcularan los jacobianos
 ntk_p_dict = {x: X_BC_t[0:Np,0:1], z: X_BC_t[0:Np,1:2], t: X_BC_t[0:Np,2:3]}
 ntk_eq_dict = {x: X_pde[0:Neq,0:1], z: X_pde[0:Neq,1:2], t: X_pde[0:Neq,2:3]}
 ntk_ux_snap1_dict = {x: X_init1[0:Nux,0:1], z: X_init1[0:Nux,1:2], t: X_init1[0:Nux,2:3]}
@@ -557,36 +566,36 @@ ntk_uz_seism_dict = {x: X_S[0:Nuz_seism,0:1], z: X_S[0:Nuz_seism,1:2], t: X_S[0:
 
 #%%
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_eq_value = sess.run(K_eq, feed_dict = ntk_eq_dict)
+    sess.run(tf.global_variables_initializer())
+    K_eq_value = sess.run(K_eq, feed_dict = ntk_eq_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_p_value = sess.run(K_p, feed_dict = ntk_p_dict)
+    sess.run(tf.global_variables_initializer())
+    K_p_value = sess.run(K_p, feed_dict = ntk_p_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_ux_value_1 = sess.run(K_ux, feed_dict = ntk_ux_snap1_dict)
+    sess.run(tf.global_variables_initializer())
+    K_ux_value_1 = sess.run(K_ux, feed_dict = ntk_ux_snap1_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_uz_value_1 = sess.run(K_uz, feed_dict = ntk_uz_snap1_dict)
+    sess.run(tf.global_variables_initializer())
+    K_uz_value_1 = sess.run(K_uz, feed_dict = ntk_uz_snap1_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_ux_value_2 = sess.run(K_ux, feed_dict = ntk_ux_snap2_dict)
+    sess.run(tf.global_variables_initializer())
+    K_ux_value_2 = sess.run(K_ux, feed_dict = ntk_ux_snap2_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_uz_value_2 = sess.run(K_uz, feed_dict = ntk_uz_snap2_dict)
+    sess.run(tf.global_variables_initializer())
+    K_uz_value_2 = sess.run(K_uz, feed_dict = ntk_uz_snap2_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_ux_seism = sess.run(K_ux, feed_dict = ntk_ux_seism_dict)
+    sess.run(tf.global_variables_initializer())
+    K_ux_seism = sess.run(K_ux, feed_dict = ntk_ux_seism_dict)
 
 with tf.Session() as sess:
-      sess.run(tf.global_variables_initializer())
-      K_uz_seism = sess.run(K_uz, feed_dict = ntk_uz_seism_dict)
+    sess.run(tf.global_variables_initializer())
+    K_uz_seism = sess.run(K_uz, feed_dict = ntk_uz_seism_dict)
 
 #%%
 trace_disp1 = np.trace(K_ux_value_1) + np.trace(K_uz_value_1)
@@ -615,26 +624,94 @@ loss = lam_eq_val*loss_pde + lam_disp1_val*loss_init_disp1 + lam_disp2_val*loss_
 optimizer_Adam = tf.train.AdamOptimizer(learning_rate)
 train_op_Adam = optimizer_Adam.minimize(loss)
 
-#%%
-xx0, zz0 = xx.reshape((-1, 1)), zz.reshape((-1, 1))
+#%% ################ Plot de pesos ################
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    
+    w_f = sess.run(weights)  # saving weights
+    b_f = sess.run(biases)  # saving biases
 
-# Evaluacion de PINNs en el tiempo=0
-X_eval01 = np.concatenate((xx0, zz0, 0*np.ones((xx0.shape[0], 1))), axis=1)
-# evaluación de PINN en el momento en que se proporciona la segunda entrada de specfem
-X_eval02 = np.concatenate(
-    (xx0, zz0, (t02-t01)*np.ones((xx0.shape[0], 1))), axis=1)
-# evaluar los PINN en un momento posterior> 0
-X_evalt = np.concatenate(
-    (xx0, zz0, (t_la-t01)*np.ones((xx0.shape[0], 1))), axis=1)
+#%% Red 1 [3]+[30][30][30]+[1]
+# Plot 2D - Pesos
+epoch = 0
+colors = list(mcolors.TABLEAU_COLORS.values())
+etiquetas_x_w = [f"Capa {i+1}-{i+2}" for i in range(len(w_f))]
+
+fig = plt.figure()
+for i in range(len(w_f)):
+    x_w = i*np.ones(w_f[i].size)
+    y_w = w_f[i].ravel()
+    
+    plt.scatter(x_w, y_w, edgecolor='none', alpha=0.6)
+    
+plt.xticks(range(len(etiquetas_x_w)), etiquetas_x_w)
+plt.title('Pesos de la red neuronal')
+# plt.show()
+plt.savefig(f'{path_entrenamiento}/PesosIniciales2D.png', dpi=400)
+plt.close(fig)
+
+# Plot 2D - Sesgos
+etiquetas_x_b = [f"Capa {i+2}" for i in range(len(b_f))]
+fig = plt.figure()
+for i in range(len(b_f)):
+    x_b = i*np.ones(b_f[i].size)
+    y_b = b_f[i].ravel()
+    
+    plt.scatter(x_b, y_b, edgecolor='none', alpha=0.6)
+    
+plt.xticks(range(len(etiquetas_x_b)), etiquetas_x_b)
+plt.title('Sesgos de la red neuronal')
+# plt.show()
+plt.savefig(f'{path_entrenamiento}/SesgosIniciales2D.png', dpi=400)
+plt.close(fig)
+
+#%% # Plot 3D - Pesos
+fig = plt.figure()
+axs = fig.add_subplot(111, projection='3d')
+
+# Crear el gráfico scatter en 3D
+for epoch in range(0,50,10):
+    for i in range(len(w_f)):
+        x_w = i*np.ones(w_f[i].size)
+        y_w = w_f[i].ravel()
+        z_w = epoch
+        axs.scatter(x_w, z_w, y_w, alpha=0.6, color=colors[i])
+
+    # plt.yticks(range(1), "Epoca 0")
+    plt.xticks(range(len(etiquetas_x_w)), etiquetas_x_w)
+    
+    # Etiquetas de los ejes
+    axs.set_zlabel('Valor del Peso')
+    axs.set_ylabel('Época de Entrenamiento')
+    
+    # Título del gráfico
+    axs.set_title('Evolucion de los pesos')
+    break
+    
+    # plt.show()
+plt.savefig(f'{path_entrenamiento}/PesosIniciales3D.png', dpi=400)
+plt.close()
+
+#%%
+# xx0, zz0 = xx.reshape((-1, 1)), zz.reshape((-1, 1))
+
+# # Evaluacion de PINNs en el tiempo=0
+# X_eval01 = np.concatenate((xx0, zz0, 0*np.ones((xx0.shape[0], 1))), axis=1)
+# # evaluación de PINN en el momento en que se proporciona la segunda entrada de specfem
+# X_eval02 = np.concatenate(
+#     (xx0, zz0, (t02-t01)*np.ones((xx0.shape[0], 1))), axis=1)
+# # evaluar los PINN en un momento posterior> 0
+# X_evalt = np.concatenate(
+#     (xx0, zz0, (t_la-t01)*np.ones((xx0.shape[0], 1))), axis=1)
 
 # %% Dicionaries
-# este diccionario es para evaluar la condición inicial recuperada de los PINN en nuevos puntos de prueba distintos a los utilizados para el entrenamiento
-feed_dict01 = {x: X_eval01[:, 0:1], z: X_eval01[:, 1:2], t: X_eval01[:, 2:3]}
-# este diccionario es para evaluar la condición inicial recuperada de los PINN en nuevos puntos de prueba distintos a los utilizados para el entrenamiento
-feed_dict02 = {x: X_eval02[:, 0:1], z: X_eval02[:, 1:2], t: X_eval02[:, 2:3]}
-# este diccionario es para evaluar los PINN en un momento posterior> 0
-feed_dict2 = {x: X_evalt[:, 0:1], z: X_evalt[:, 1:2], t: X_evalt[:, 2:3]}
-feed_dict_seism = {x: X_S[:, 0:1], z: X_S[:, 1:2], t: X_S[:, 2:3]}
+# # este diccionario es para evaluar la condición inicial recuperada de los PINN en nuevos puntos de prueba distintos a los utilizados para el entrenamiento
+# feed_dict01 = {x: X_eval01[:, 0:1], z: X_eval01[:, 1:2], t: X_eval01[:, 2:3]}
+# # este diccionario es para evaluar la condición inicial recuperada de los PINN en nuevos puntos de prueba distintos a los utilizados para el entrenamiento
+# feed_dict02 = {x: X_eval02[:, 0:1], z: X_eval02[:, 1:2], t: X_eval02[:, 2:3]}
+# # este diccionario es para evaluar los PINN en un momento posterior> 0
+# feed_dict2 = {x: X_evalt[:, 0:1], z: X_evalt[:, 1:2], t: X_evalt[:, 2:3]}
+# feed_dict_seism = {x: X_S[:, 0:1], z: X_S[:, 1:2], t: X_S[:, 2:3]}
 i = int(-1)
 loss_eval = np.zeros((1, 7))
 loss_rec = np.empty((0, 7))
@@ -660,7 +737,7 @@ plt.colorbar()
 plt.axis('scaled')
 plt.plot(Lx*0.99*X_S[:, 0], Lz*X_S[:, 1], 'r*', markersize=5)
 plt.savefig(f'{path_entrenamiento}/True_wavespeed.png', dpi=400)
-plt.show()
+# plt.show()
 plt.close(fig)
 
 # %%
@@ -678,16 +755,20 @@ plt.title(r'Initial guess ($\alpha$)')
 plt.colorbar()
 plt.axis('scaled')
 plt.savefig(f'{path_entrenamiento}/Ini_guess_wavespeed.png', dpi=400)
-plt.show()
+# plt.show()
 plt.close(fig)
 
 #%%
 lam_eval=np.zeros((1,6))
 lam_rec=np.empty((0,6))
 
+
 # %% Entrenamiento de la red PINN
 
 bbn = 0
+lista_pesos = [w_f]
+lista_sesgos = [b_f]
+
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
@@ -735,8 +816,23 @@ with tf.Session() as sess:
             # This dictionary is for training
             feed_dict1 = {x: XX[:, 0:1], z: XX[:, 1:2], t: XX[:, 2:3]}
             
-            
             ######### Adjust loss with new NTK values #################################
+            
+            # Compute the Jacobian for weights and biases in each hidden layer  
+            # Re calculo del jacobiano
+            # w_f = sess.run(weights)
+            # b_f = sess.run(biases)
+            
+            # J_p = compute_jacobian(weights, biases, P)
+            # J_eq = compute_jacobian(weights, biases, eq)
+            # J_ux = compute_jacobian(weights, biases, ux)
+            # J_uz = compute_jacobian(weights, biases, uz)
+            
+            # K_p = compute_ntk(J_p, x_p_ntk_tf, J_p, x_p_ntk_tf)
+            # K_eq = compute_ntk(J_eq, x_eq_ntk_tf, J_eq, x_eq_ntk_tf)
+            # K_ux = compute_ntk(J_ux, x_ux_ntk_tf, J_ux, x_ux_ntk_tf)
+            # K_uz = compute_ntk(J_uz, x_uz_ntk_tf, J_uz, x_uz_ntk_tf)
+
             K_eq_value = sess.run(K_eq, feed_dict = ntk_eq_dict)
             K_p_value = sess.run(K_p, feed_dict = ntk_p_dict)
             K_ux_value_1 = sess.run(K_ux, feed_dict = ntk_ux_snap1_dict)
@@ -749,26 +845,28 @@ with tf.Session() as sess:
             trace_disp1 = np.trace(K_ux_value_1) + np.trace(K_uz_value_1)
             trace_disp2 = np.trace(K_ux_value_2) + np.trace(K_uz_value_2)
             trace_seism = np.trace(K_ux_seism) + np.trace(K_uz_seism)
-            
-            trace_K = np.trace(K_p_value) + np.trace(K_eq_value) + trace_disp1 + trace_disp2 + trace_seism
-            
-            lam_p_val = trace_K / np.trace(K_p_value)
-            lam_eq_val = trace_K / np.trace(K_eq_value)
-            lam_disp1_val  = trace_K / trace_disp1
+            trace_bc = np.trace(K_p_value)
+            trace_eq = np.trace(K_eq_value)
+  
+            trace_K = trace_bc + trace_eq + trace_disp1 + trace_disp2 + trace_seism
+  
+            lam_p_val = trace_K / trace_bc
+            lam_eq_val = trace_K / trace_eq
+            lam_disp1_val = trace_K / trace_disp1
             lam_disp2_val = trace_K / trace_disp2
-            lam_seism_val = trace_K / trace_seism
+            lam_seism_val = trace_K / trace_seism  
             
             loss = lam_eq_val*loss_pde + lam_disp1_val*loss_init_disp1 + lam_disp2_val*loss_init_disp2 + lam_seism_val*loss_seism + lam_p_val*loss_BC
+            
             train_op_Adam = optimizer_Adam.minimize(loss)
             
             lam_eval[0,0], lam_eval[0,1], lam_eval[0,2], lam_eval[0,3], lam_eval[0,4], lam_eval[0,5]\
                 = epoch, lam_eq_val, lam_disp1_val, lam_disp2_val, lam_seism_val, lam_p_val
                 
-            lam_rec= np.concatenate((lam_rec,lam_eval), axis=0)
+            lam_rec = np.concatenate((lam_rec,lam_eval), axis=0)
             
             #######################################################################
             
-
             U_PINN01 = ((ux01[0].reshape(xx.shape))**2 +
                         (uz01[0].reshape(xx.shape))**2)**0.5
             U_PINN02 = ((ux02[0].reshape(xx.shape))**2 +
@@ -776,6 +874,7 @@ with tf.Session() as sess:
             U_PINNt = ((uxt[0].reshape(xx.shape))**2 +
                        (uzt[0].reshape(xx.shape))**2)**0.5
             U_diff = np.sqrt(U_specx**2+U_specz**2).reshape(xx.shape)-U_PINNt
+            
             fig = plt.figure()
             plt.contourf(xx*Lx, zz*Lz, U_PINN01, 100, cmap='jet')
             plt.xlabel('x')
@@ -797,6 +896,7 @@ with tf.Session() as sess:
                         str(round(t02-t01, 4))+'.png', dpi=400)
             # plt.show()
             plt.close(fig)
+            
             fig = plt.figure()
             plt.contourf(xx*Lx, zz*Lz, U_PINNt, 100, cmap='jet')
             plt.xlabel('x')
@@ -847,17 +947,17 @@ with tf.Session() as sess:
             plt.close(fig)
             
             fig = plt.figure()
-            plt.plot(lam_rec[0:,0], lam_rec[0:,3],'g',label='ini_disp2')
-            plt.plot(lam_rec[0:,0], lam_rec[0:,5],'black',label='B.C')
             plt.plot(lam_rec[0:,0], lam_rec[0:,1],'r',label='PDE')
             plt.plot(lam_rec[0:,0], lam_rec[0:,2],'b',label='ini_disp1')
+            plt.plot(lam_rec[0:,0], lam_rec[0:,3],'g',label='ini_disp2')
             plt.plot(lam_rec[0:,0], lam_rec[0:,4],'c',label='Seism')
+            plt.plot(lam_rec[0:,0], lam_rec[0:,5],'black',label='B.C')
             plt.yscale("log")
             plt.xlabel('epoch')
             plt.ylabel('Lambdas')
             plt.legend()
             plt.savefig(f'{path_entrenamiento}/lambdas.png', dpi=400)
-            plt.show()
+            # plt.show()
             plt.close(fig)
 
             fig = plt.figure()
@@ -903,6 +1003,40 @@ with tf.Session() as sess:
             b_f = sess.run(biases)  # saving biases
             w_alph = sess.run(weights0)  # saving weights for the inverse NN
             b_alph = sess.run(biases0)
+            
+            # Guardar los pesos y sesgos
+            lista_pesos.append(w_f)
+            lista_sesgos.append(b_f)
+            
             with open(f'{path_entrenamiento}/recorded_weights.pickle', 'wb') as f:
                 pickle.dump(['The first tensor contains weights, the second biases and the third losses',
                             w_f, b_f, w_alph, b_alph, loss_rec], f)
+
+#%%
+####################### Plot de los pesos #############################
+# Plot 3D - Pesos
+fig_weight = plt.figure()
+axs = fig_weight.add_subplot(111, projection='3d')
+
+# Crear el gráfico scatter en 3D
+for index, pesos in enumerate(lista_pesos):
+    for i in range(len(pesos)):
+        x_w = i*np.ones(pesos[i].size)
+        y_w = pesos[i].ravel()
+        z_w = index*200
+        axs.scatter(x_w, z_w, y_w, alpha=0.6, color=colors[i], size=0.6)
+
+# plt.yticks(range(1), "Epoca 0")
+plt.xticks(range(len(etiquetas_x_w)), etiquetas_x_w)
+
+# Etiquetas de los ejes
+axs.set_zlabel('Valor del Peso')
+axs.set_ylabel('Época de Entrenamiento')
+# axs.set_yscale('log')
+
+# Título del gráfico
+axs.set_title('Evolucion de los pesos')
+
+plt.show()
+plt.savefig(f'{path_entrenamiento}/Pesos3D_{num_epoch}_v2.png', dpi=400)
+# plt.close(fig_weight)
