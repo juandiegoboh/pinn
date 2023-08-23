@@ -34,18 +34,6 @@ def modelo3D(data):
 
     plot3D.close()
     
-#% Fuentes
-def gaussian_neg(tstep, dt, fq):
-  t = dt * tstep - 1 / fq
-  f = -np.exp(-2 * (np.pi ** 2) * (fq ** 2 ) * (t ** 2))
-  return f
-
-def ricker(tstep, dt, fq):
-  t = dt * tstep - 1 / fq
-  f = (1 - 2 * (np.pi ** 2) * (fq ** 2 ) * (t ** 2)) * np.exp(-(np.pi ** 2) * (fq ** 2) * (t ** 2))
-  return f
-
-    
 #%% Parametros de la propagación
 fq = 16   # Frecuencia (Hz)
 nz = 150  # Puntos del modelo en z
@@ -85,17 +73,11 @@ velocidad = ModeloVelocidad(nx, nz, dx, dz, sx, sz)
 # Modelo de Rash
 alpha_true1 = velocidad.cargar_modelo_rash("event1/modelo_vel.npy", ax/dx, az/dz, order=1, mode="edge")
 alpha_true1 = alpha_true1.T
-
-#%% Se agrega la fuente sismica
-g = np.ones(nt)
-
-for i in range(nt):
-    g[i] = gaussian_neg(i, dt, fq)
     
 #%%
 # Ejecución de la propagación
 ttic.tic()
-Pt, P = propagator(alpha_true1, g, sx, sz, dx*1000, dz*1000, dt, 10e3, fq, ["left", "right", "top"])
+P = propagator(alpha_true1, sx, sz, dx*1000, dz*1000, dt, nt, 10e3, fq, "gaussian_neg", ["left", "right", "top"])
 ttic.toc()
 
 #%% 

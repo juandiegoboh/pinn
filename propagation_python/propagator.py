@@ -13,39 +13,45 @@ import numpy as np
 from get_CPML import get_CPML
 from numba import njit
 
-@njit
-def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronteras):
-    '''
-    Función que genera la propagación de una onda acústica.
+#%% Fuentes sismicas
+def gaussian_neg(tstep, dt, fq):
+  t = dt * tstep - 1 / fq
+  f = -np.exp(-2 * (np.pi ** 2) * (fq ** 2 ) * (t ** 2))
+  return f
 
-    Parameters
+def gaussian(tstep, dt, fq):
+  t = dt * tstep - 1 / fq
+  f = np.exp(-2 * (np.pi ** 2) * (fq ** 2 ) * (t ** 2))
+  return f
+
+def ricker(tstep, dt, fq):
+  t = dt * tstep - 1 / fq
+  f = (1 - 2 * (np.pi ** 2) * (fq ** 2 ) * (t ** 2)) * np.exp(-(np.pi ** 2) * (fq ** 2) * (t ** 2))
+  return f
+
+fuentes = {
+    "gaussian_neg": gaussian_neg,
+    "gaussian": gaussian,
+    "ricker": ricker,
+    }
+
+#%%
+@njit
+def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras):
+    '''
+    Función que genera la propagación de una onda acústica utilizando la solución de diferencias finitas.
+
+    Parametros: 
     ----------
-    m : array
-        Matriz de velocidades del modelo.
-    src : array
-        Vector que contiene la fuente de la perturbación (Ej: Ricker). Tamaño = (Nt, 1)
-    Ix0 : int
-        Posición en X de la perturbación, en puntos del modelo (Nx).
-    Iz0 : int
-        Posición en Z de la perturbación, en puntos del modelo (Nx).
-    dx : float
-        Tamaño de la celda en x.
-    dz : float
-        Tamaño de la celda en z.
-    dt : float
-        Tamaño de la rebanada temporal.
-    max_offset : float
+    src : np.array
+        Vector que representa la fuente de la propagación
     
-    frec : int
-        Frecuencia de la onda fuente.
-    fronteras : list
-        Lista que indica que fronteras absorbentes activar
+    Para los demás parámetros ver definición en la función propagator().
 
     Returns
     -------
-    P : array
+    P : np.array
         Campo de presión de la onda acústica en el tiempo. Tamaño = (Nx x Nz x Nt)
-
     '''
     max_ix = max_offset/dx
     # Se calculan Nx, Nz, Nt según los datos de entrada
@@ -87,7 +93,7 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronter
     v_min = np.amin(m)
     
     # Parametros de la onda
-    wave_l = v_min/frec
+    wave_l = v_min/fq
     points_per_wavelength = wave_l/dx
     
     courant_number = v_max * dt/dx * np.sqrt(2)
@@ -97,19 +103,20 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronter
     v_cpml = v_max
     
     # Cálculo de los elementos de la C-PML
-    a_x,a_x_half,b_x,b_x_half,a_z,a_z_half,b_z,b_z_half = get_CPML(CPMLimit,R,v_cpml,Nx,Nz,dx,dz,dt,frec)
+    a_x,a_x_half,b_x,b_x_half,a_z,a_z_half,b_z,b_z_half = get_CPML(CPMLimit,R,v_cpml,Nx,Nz,dx,dz,dt,fq)
     
     left = fronteras[0]
     right = fronteras[1]
     top = fronteras[2]
     bottom = fronteras[3]
     
-    # Definición de rango de la propagación
+    # Definición de rango de la propagación sin fronteras
     rango_x_min = 0
     rango_x_max = Nx - 1
     rango_z_min = 0
     rango_z_max = Nz - 1
     
+    # Definición del rango de la propagación con fronteras
     if left:
         rango_x_min = CPMLimit + 1
     if right:
@@ -131,15 +138,8 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronter
             for iz in range(rango_z_min, rango_z_max):
                 d2P_dx2 = (P_tmp[ix+1,iz]+P_tmp[ix-1,iz]-2*P_tmp[ix,iz]) * one_over_dx2
                 d2P_dz2 = (P_tmp[ix,iz+1]+P_tmp[ix,iz-1]-2*P_tmp[ix,iz]) * one_over_dz2
-                d2P_dt2[ix,iz,it] = d2P_dx2 + d2P_dz2 
-        # else:
-        #     print(fronteras)
-        #     for ix in range(CPMLimit+1, Nx-CPMLimit):
-        #         for iz in range(CPMLimit+1, Nz-CPMLimit):
-        #             d2P_dx2 = (P_tmp[ix+1,iz]+P_tmp[ix-1,iz]-2*P_tmp[ix,iz]) * one_over_dx2
-        #             d2P_dz2 = (P_tmp[ix,iz+1]+P_tmp[ix,iz-1]-2*P_tmp[ix,iz]) * one_over_dz2
-        #             d2P_dt2[ix,iz,it] = d2P_dx2 + d2P_dz2
-            
+                d2P_dt2[ix,iz,it] = d2P_dx2 + d2P_dz2
+                
         # P_tmp[Nx-1,:] = 0
         # P_tmp[0,:] = 0
         # P_tmp[:,Nz-1] = 0
@@ -274,12 +274,43 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronter
     # Se retornan las variables importantes para el metodo principal
     return P, Ix0, Iz0, max_ix, Nx, Nz
 
+#%%
+def propagator(m:np.array, Ix0:int, Iz0:int, dx:float, dz:float, dt:float, nt:int, max_offset:float, fq:int, tipo_fuente:str, fronteras:list=[]):
+    '''
+    Método que llama a la función calculate_propagator y entrega el resultado del campo P al usuario
+    Además define las entradas de las fronteras CPML y las convierte en un np.array
+    
+    Parameters
+    ----------
+    m : np.array
+        Matriz de velocidades del modelo, dimensiones nx,nz.
+    Ix0 : int
+        Posición en X de la perturbación, en puntos del modelo (Nx).
+    Iz0 : int
+        Posición en Z de la perturbación, en puntos del modelo (Nx).
+    dx : float
+        Tamaño de la celda en x.
+    dz : float
+        Tamaño de la celda en z.
+    dt : float
+        Tamaño de la rebanada temporal.
+    nt : int
+        Cantidad de pasos en el eje temporal.
+    max_offset : float
+    
+    fq : int
+        Frecuencia de la onda fuente.
+    tipo_fuente : str
+        Tipo de onda a utilizar. Las fuentes disponibles son "ricker", "gaussian" y "gaussian_neg".
+    fronteras : list
+        Lista que indica que fronteras absorbentes activar. Ej: ["top", "bottom"]
 
-def propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronteras = []):
+    Returns
+    -------
+    P : np.array
+        Campo de presión calculado por la función calculate_propagator().
     '''
-    Método que llama calculate_propagator y hace el reshape de la información 
-    resultante para entregar al usuario
-    '''
+    
     # Fronteras  
     left = True if "left" in fronteras else False
     right = True if "right" in fronteras else False
@@ -288,13 +319,14 @@ def propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronteras = []):
     
     fronteras = np.array([left, right, top, bottom], dtype="bool")
     
-    P, Ix0, Iz0, max_ix, Nx, Nz = calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, frec, fronteras)
-    
-    Ptx = np.arange(np.amax(np.array([20,Ix0-max_ix])), np.min(np.array([Nx-21, Ix0+max_ix]))+1)
-    Ptx = Ptx.astype(int)
-    
-    Pt = P[Ptx, Iz0, :].T
-    
-    return Pt, P
+    # Fuente sismica
+    src = np.ones(nt)
 
+    for i in range(nt):
+        src[i] = fuentes[tipo_fuente](i, dt, fq)
+        
+    # Calculo de la propagación
+    P, Ix0, Iz0, max_ix, Nx, Nz = calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras)
+    
+    return P
 
