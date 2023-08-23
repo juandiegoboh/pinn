@@ -153,7 +153,6 @@ class PropagacionAcustica:
         
         return cubo
     
-    # Definición del decorador para agregar información adicional
     def plot_campo(self, P, title, name, snap=0, save=False, path='', seismogram=False, **seismograms):
         fig = plt.figure()
         plt.contourf(self.xxs * self.dx, self.zzs * self.dz, P.reshape((self.xxs.shape)), 100, cmap="jet")
@@ -164,7 +163,9 @@ class PropagacionAcustica:
         plt.title(title)
         
         if seismogram:
+            plt.scatter(self.sx * self.dx, self.sz * self.dz, c="k", label="Fuente")
             plt.plot(seismograms['x_pos'], seismograms['z_pos'], "r*", markersize=4, label="Receptores")
+            plt.legend(loc='best', fontsize='small')
             if save:
                 plt.savefig(
                     f"{path}\\{name}.png", bbox_inches="tight", dpi=320
@@ -311,7 +312,7 @@ class PropagacionAcustica:
             fig.savefig(f"{path}\\componente_{time}_propio_completo.png",
                         bbox_inches="tight", dpi=320)
             
-    def coordenadas_campo(self, export=False, path_export=None):
+    def coordenadas_campo(self, export=True, path_export=None):
         xxss, zzss = np.meshgrid(np.linspace(0, self.size_x, self.nx),
                                  np.linspace(0, self.size_z, self.nz))
 
@@ -344,7 +345,7 @@ class PropagacionAcustica:
         xsf_id = [int(x * (self.nx - 1) / self.size_x) for x in pos_x]
         zsf_id = [int(z * (self.nz - 1) / self.size_z) for z in pos_z]
         
-        grad_z, grad_x = self.grad_x, self.grad_z
+        grad_z, grad_x = self.grad_z, self.grad_x
         
         sismogramas_x = np.zeros((0,))
         sismogramas_z = np.zeros((0,))

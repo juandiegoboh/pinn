@@ -5,7 +5,6 @@
 #include <string.h>
 #include "CPML.h"       //CPML
 #include "funciones2.h" //CPML
-
 #define IdS(A, i, j) (A)[(i)*Nz + (j)]
 int main()
 {
@@ -16,7 +15,6 @@ int main()
   int Tout = [[Tout]];
   int i, j;
   float c_max = 0.0;
-  // float *c_temp = (float *)calloc(Nx * Nz, sizeof(float));
   float *c = (float *)calloc(Nx * Nz, sizeof(float));
 
   float dh = [[dh]];
@@ -35,12 +33,11 @@ int main()
   cpml->CPML_Z_MAX = false;   // false
   cpml->CPML_Z_MIN = true;    // true
 
-  // // Modelo constante
   // for (i = 0; i < Nx; i++)
   // {
   //   for (j = 0; j < Nz; j++)
   //   {
-  //     IdS(c, i, j) = [[c]];
+  //     IdS(c, i, j) = 1200.0;
   //   }
   // }
 

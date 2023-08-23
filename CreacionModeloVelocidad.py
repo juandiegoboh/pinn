@@ -8,6 +8,7 @@ Created on Mon Jun 26 13:07:02 2023
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 from scipy.ndimage import zoom
 #%%
@@ -65,7 +66,7 @@ class ModeloVelocidad:
         return velocidades
     
     
-    def cargar_modelo_zoom(self, path_orig, size_x, size_z, order=1):
+    def cargar_modelo_rash(self, path_orig, size_x, size_z, order=1, mode='edge'):
         alpha_true = np.load(path_orig).astype("float32") * 1000
         
         # Re escalado de alpha true al tamaño del modelo de entrenamiento
@@ -76,8 +77,9 @@ class ModeloVelocidad:
         alpha_true0 = zoom(alpha_true, zoom_factor, order=order)
         
         # Se completa el modelo de velocidad para el dominio completo
-        alpha_true1 = np.pad(alpha_true0, ((0, int(self.nz-size_z)), 
-                                           (0,int(self.nx-size_x))), mode='edge')
+        nodos_der = int(0.2/self.dx)
+        nodos_izq = int(self.nx-size_x)-nodos_der
+        alpha_true1 = np.pad(alpha_true0, ((int(self.nz-size_z), 0), (nodos_izq, nodos_der)), mode=mode)
         
         
         # Se exporta el archivo binario para leer en C
@@ -92,24 +94,35 @@ class ModeloVelocidad:
         output_file.close()
     
     
-    def plot_vel(self, path_dest, name, save):
-        xxs, zzs = np.meshgrid(np.linspace(0, self.nx, self.nx), np.linspace(0, self.nz, self.nz))
+    def plot_vel(self, n_absx, n_absz, ax, az, path_dest, name, save):
+        xxs, zzs = np.meshgrid(np.linspace(0, self.nx, self.nx),
+                               np.linspace(0, self.nz, self.nz))
         
-        fig = plt.figure()
-        plt.contourf(xxs * self.dx, zzs * self.dz,
+        fig, axs = plt.subplots()
+        a = axs.contourf(xxs * self.dx, zzs * self.dz,
                      self.modelo.reshape((xxs.shape)), 100, cmap="jet")
-        plt.colorbar()
-        plt.xlabel("x")
-        plt.ylabel("z")
-        plt.title(r"Modelo de velocidad ($\alpha$)" + f" - {self.nz}x{self.nx}")
-        plt.scatter(self.sx * self.dx, self.sz * self.dz, c="k", label="Fuente")
-        if self.xsf_arr:
-            plt.plot(self.xsf_arr, self.zsf_arr, "r*", markersize=4, label="Receptores")
-        plt.axis("scaled")
+        axs.set(xlabel="x", ylabel="z", title=r"Modelo de velocidad ($\alpha$)" + f" - {self.nz}x{self.nx}")
+        axs.scatter(self.sx * self.dx, self.sz * self.dz, c="k", label="Fuente")
         
-        plt.legend(loc='best', fontsize='small')
+        if self.xsf_arr:
+            axs.plot(self.xsf_arr, self.zsf_arr, "r*", markersize=4, label="Receptores")
+        
+        axs.add_patch(
+            Rectangle(
+                (n_absx * self.dx, n_absz * self.dz), ax, az,
+                fill=False,
+                edgecolor="y",
+                ls="--",
+                label="Entrenamiento",
+            )
+        )
+        
+        plt.colorbar(a)
+        plt.axis("scaled")
+    
+        plt.legend(loc='upper left', fontsize='small')
         plt.show()
         
         if save:
             plt.savefig(f"{path_dest}\\{name}.png", bbox_inches="tight", dpi=320)
-                
+

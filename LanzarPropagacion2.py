@@ -32,10 +32,11 @@ if not os.path.exists(path_imgs):
 fq = 16   # Frecuencia (Hz)
 nz = 150  # Puntos del modelo en z
 nx = nz * 3  # Puntos del modelo en x (en specfem es 100)
-nt = 650  # Puntos del modelo en t
-tipo_fuente = "gaussian_neg" # gaussian, ricker, gaussian-neg
+nt = 800  # Puntos del modelo en t
+tipo_fuente = "gaussian_neg" # gaussian, ricker, gaussian_neg
 
-n_abs = 20  # nodos para absorber condiciones de frontera en ambas direcciones de specfem
+n_abs = 20  # nodos para absorber condiciones de frontera en ambas direcciones
+# n_abs = 20  # nodos para absorber condiciones de frontera en ambas direcciones
 n_absx = n_abs  # nodos del lado izquierdo del dominio
 n_absz = n_abs  # el límite superior no absorbe
 
@@ -62,9 +63,10 @@ az = az_spec - n_absz * dz
 velocidad = ModeloVelocidad(nx, nz, dx, dz, sx, sz)
 
 # Modelo de Rash
-alpha_true1 = velocidad.cargar_modelo_zoom("event1/modelo_vel.npy", ax/dx, az/dz)
+alpha_true1 = velocidad.cargar_modelo_rash("event1/modelo_vel.npy", ax/dx, az/dz, order=1, mode="edge")
 
-velocidad.plot_vel(path_imgs, "alpha_true0_original", True)
+velocidad.plot_vel(n_absx, n_absz, ax, az, path_imgs, "alpha_true0_original", save=True)
+
 
 #%% Propagacion
 propagacion = PropagacionAcustica(fq, nz, nx, nt, ax_spec, az_spec, sx, sz, dh, 
@@ -87,11 +89,16 @@ componentes = propagacion.componentes_campo([t01, t02, t_la], save=True, export=
                               path_export=path_wavefield, path=path_imgs)
 
 #%% Extraer coordenadas
-coordenadas = propagacion.coordenadas_campo(export=True, 
-                                            path_export=path_wavefield)
+coordenadas = propagacion.coordenadas_campo(path_export=path_wavefield)
 
 #%% Ver modelo 3D
-# propagacion.modelo3D(cubo)
+propagacion.modelo3D(cubo)
+
+#%% Sismograma prueba
+
+figure = plt.figure()
+plt.plot(cubo[1, 1, :])
+plt.show()
 
 #%% Sismogramas
 # Posiciones de los sismogramas en coordenadas

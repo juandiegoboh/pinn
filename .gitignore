@@ -8,4 +8,5 @@ __pycache__/
 !.gitignore
 # Elementos de la propagacion en C
 !/propagation-cpml-C/
+!/propagation_python/
 /propagation-cpml-C/*.bin

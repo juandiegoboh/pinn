@@ -48,7 +48,7 @@ void Propagador(int Nx, int Nz, int Sx, int Sz, int Tout, float dh, float dt, fl
 
   for (tstep = 0; tstep < Tout; tstep++)
   {
-    fuente[tstep] = gaussian_neg (tstep, dt, fq);
+    fuente[tstep] = gaussian_neg(tstep, dt, fq);
   }
 
   for (t = 0; t < Tout; t++)

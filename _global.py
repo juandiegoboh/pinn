@@ -10,7 +10,7 @@ de onda acústica.
 import os
 
 #======================== Revisar estas variables ========================
-experimento = "6"
+experimento = "9"
 carpeta_img = "06 jun 2023"
 #=========================================================================
 

@@ -81,7 +81,7 @@ n_event = 1  # numero de eventos sísmicos
 n_seis = df["Numero sismometros"][0]  # número de sismómetros; si los eventos tienen diferentes números de sismómetros, se deben cambiar las líneas que contienen n_seis
 z0_s = az  # z ubicación del primer sismómetro de SPECFEM en el marco de referencia de PINN. Aquí debe estar en km mientras que en SPECFEM está en metros. Tenga en cuenta que aquí asumimos que los sismómetros NO están todos en la superficie y están en una línea vertical con la misma x; el primer sismómetro está en la superficie y el siguiente va más profundo
 
-zl_s = 0.06-n_absz*dz  # z ubicación del último sismómetro en profundidad. esto no tiene que ser cero y puede ser mayor, especialmente si tiene una frontera absorbente en la parte inferior, cámbielo según lo que haya usado de specfem
+zl_s = 0.0766-n_absz*dz  # z ubicación del último sismómetro en profundidad. esto no tiene que ser cero y puede ser mayor, especialmente si tiene una frontera absorbente en la parte inferior, cámbielo según lo que haya usado de specfem
 
 Lx = 3  # esto es para escalar la velocidad de la onda en el EDP a través de escalar la coordenada x
 Lz = 3  # esto es para escalar la velocidad de la onda en el EDP a través de escalar la coordenada z

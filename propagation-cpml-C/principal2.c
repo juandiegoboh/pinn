@@ -5,7 +5,6 @@
 #include <string.h>
 #include "CPML.h"       //CPML
 #include "funciones2.h" //CPML
-
 #define IdS(A, i, j) (A)[(i)*Nz + (j)]
 int main()
 {
@@ -13,10 +12,9 @@ int main()
   int Nz = 150;
   int Sx = 150;
   int Sz = 75;
-  int Tout = 650;
+  int Tout = 800;
   int i, j;
   float c_max = 0.0;
-  // float *c_temp = (float *)calloc(Nx * Nz, sizeof(float));
   float *c = (float *)calloc(Nx * Nz, sizeof(float));
 
   float dh = 3.3333333333333335;
@@ -35,26 +33,25 @@ int main()
   cpml->CPML_Z_MAX = false;   // false
   cpml->CPML_Z_MIN = true;    // true
 
-  // // Modelo constante
-  // for (i = 0; i < Nx; i++)
-  // {
-  //   for (j = 0; j < Nz; j++)
-  //   {
-  //     IdS(c, i, j) = [[c]];
-  //   }
-  // }
-
-  // Leer la matriz desde el archivo binario
-  FILE *archivo = fopen("../experimentos/experimento_6/velocity_models/modelo_velocidad_6.bin", "rb");
-
-  if (archivo == NULL)
+  for (i = 0; i < Nx; i++)
   {
-    printf("Error al abrir el archivo.\n");
-    return 1; // Terminar el programa con un código de error
+    for (j = 0; j < Nz; j++)
+    {
+      IdS(c, i, j) = 3000.0;
+    }
   }
 
-  fread(c, sizeof(float), Nx * Nz, archivo);
-  fclose(archivo);
+  // // Leer la matriz desde el archivo binario
+  // FILE *archivo = fopen("../experimentos/experimento_9/velocity_models/modelo_velocidad_9.bin", "rb");
+
+  // if (archivo == NULL)
+  // {
+  //   printf("Error al abrir el archivo.\n");
+  //   return 1; // Terminar el programa con un código de error
+  // }
+
+  // fread(c, sizeof(float), Nx * Nz, archivo);
+  // fclose(archivo);
 
   // Velocidad maxima
   for (i = 0; i < Nx; i++)
