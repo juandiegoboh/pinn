@@ -140,14 +140,14 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras
                 d2P_dz2 = (P_tmp[ix,iz+1]+P_tmp[ix,iz-1]-2*P_tmp[ix,iz]) * one_over_dz2
                 d2P_dt2[ix,iz,it] = d2P_dx2 + d2P_dz2
                 
-        P_tmp[Nx-1,:] = 0
-        P_tmp[0,:] = 0
-        P_tmp[:,Nz-1] = 0
+        # P_tmp[Nx-1,:] = 0
+        # P_tmp[0,:] = 0
+        # P_tmp[:,Nz-1] = 0
 
         if left:
             # Inicio de condiciones C-PML (lado izquierdo)
-            for ix in range(CPMLimit+1):
-                for iz in range(Nz):
+            for ix in range(1, CPMLimit+1):
+                for iz in range(1, Nz-1):
                     dP_dx[ix,iz] = P_tmp[ix+1,iz] - P_tmp[ix,iz] 
                     dP_dx[ix,iz] = one_over_dx * dP_dx[ix,iz]
         
@@ -175,8 +175,8 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras
     
         if right:
             # Inicio de condiciones C-PML (lado derecho)
-            for ix in range(Nx-1, Nx-CPMLimit-2, -1):
-                for iz in range(Nz):
+            for ix in range(Nx-2, Nx-CPMLimit-2, -1):
+                for iz in range(1, Nz-1):
                     dP_dx[ix,iz] = P_tmp[ix,iz] - P_tmp[ix-1,iz]
                     dP_dx[ix,iz] = one_over_dx * dP_dx[ix,iz]
                     
@@ -205,7 +205,7 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras
         if bottom:
             # Inicio de condiciones C-PML (parte inferior)
             for ix in range(CPMLimit+1, Nx-CPMLimit-1):
-                for iz in range(Nz-1, Nz-CPMLimit-1, -1):
+                for iz in range(Nz-2, Nz-CPMLimit-2, -1):
                     dP_dx[ix,iz] = P_tmp[ix+1,iz] - P_tmp[ix,iz]
                     dP_dx[ix,iz] = one_over_dx * dP_dx[ix,iz]
                     
@@ -234,7 +234,7 @@ def calculate_propagator(m, src, Ix0, Iz0, dx, dz, dt, max_offset, fq, fronteras
         if top:      
             # Inicio de condiciones C-PML (parte superior)
             for ix in range(CPMLimit+1, Nx-CPMLimit-1):
-                for iz in range(CPMLimit+1):
+                for iz in range(1, CPMLimit+1):
                     dP_dx[ix,iz] = P_tmp[ix+1,iz] - P_tmp[ix,iz]
                     dP_dx[ix,iz] = one_over_dx * dP_dx[ix,iz]
                     

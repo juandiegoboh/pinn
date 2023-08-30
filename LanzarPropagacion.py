@@ -72,10 +72,8 @@ velocidad.plot_vel(n_absx, n_absz, ax, az, path_imgs, "alpha_true0_original", sa
 propagacion = PropagacionAcustica(fq, nz, nx, nt, ax_spec, az_spec, sx, sz, dh, 
                                   dt, tipo_fuente, n_abs, alpha_true1, path_velocity)
 
-propagacion.lanzar_propagacion()
-
-#%% Cubo
-cubo = propagacion.obtener_datos()  # Esta funcion también calcula los gradientes para las componentes
+# cubo = propagacion.lanzar_propagacion_C()
+cubo = propagacion.lanzar_propagacion_python(cpml=["left", "right", "bottom"])
 
 #%% Obtener snapshots
 t01 = 0.1

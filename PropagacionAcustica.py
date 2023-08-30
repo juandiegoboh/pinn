@@ -6,6 +6,10 @@ Created on Mon Jul  3 10:06:00 2023
 
 Código 
 """
+# Propagador en python
+import sys
+sys.path.append("propagation_python")
+from propagator import propagator as python_propagator
 
 import os
 import numpy as np
@@ -19,7 +23,7 @@ from numba import njit
 from vedo import Volume, Text2D
 from vedo.applications import Slicer3DPlotter
 from prettytable import PrettyTable
-#%%
+#%% Clase PropagacionAcustica
 t = TicToc()
 
 class PropagacionAcustica:
@@ -41,7 +45,7 @@ class PropagacionAcustica:
         self.dx = self.dz = self.dh
         self.dt = dt
         self.sz = sz
-        self.fuente = fuente # gaussian_neg gaussian, ricker, gaussian-neg
+        self.fuente = fuente # gaussian_neg, gaussian, ricker
         
         self.n_abs = n_abs
         self.n_absx = self.n_abs
@@ -58,8 +62,7 @@ class PropagacionAcustica:
         # Coordenadas del modelo completo 1 a 1
         self.xxs, self.zzs = np.meshgrid(np.linspace(0, self.nx, self.nx), 
                                          np.linspace(0, self.nz, self.nz))
-        
-        
+              
         
     def fecha_hora(self):
         now = datetime.now()
@@ -76,7 +79,8 @@ class PropagacionAcustica:
         with open(final, "wt") as file:
             file.write(data)
 
-    def lanzar_propagacion(self):
+    def lanzar_propagacion_C(self):
+        # Reemplazos en el archivo principal 
         template_path = os.path.join(self.path_propagador, "principal_template.c")
         final_path = os.path.join(self.path_propagador, "principal2.c")
         replacements = {
@@ -93,6 +97,7 @@ class PropagacionAcustica:
         
         self.reemplazar_variables(template_path, final_path, replacements)
         
+        # Reemplazos en la definición de funciones
         template_path = os.path.join(self.path_propagador, "funciones2_template.h")
         final_path = os.path.join(self.path_propagador, "funciones2.h")
         replacements = {"[[fuente]]": f"{self.fuente}"}
@@ -100,6 +105,7 @@ class PropagacionAcustica:
         self.reemplazar_variables(template_path, final_path, replacements)
     
         # =============================================================== #
+        # Lanzamiento de la propagación en la consola WSL
         path_linux = r"/mnt/c/users/juan9/OneDrive\ -\ UNIVERSIDAD\ INDUSTRIAL\ DE\ SANTANDER/Academico/Maestria\ Geofisica/Tesis/Codigo/Juan-Diego/propagation-cpml-C"
     
         lista_comandos = [
@@ -112,12 +118,36 @@ class PropagacionAcustica:
     
         lanzar_propagador = "; ".join(lista_comandos)
     
-        # Comando en wsl
         t.tic()
         os.system(f'wsl ~ -e sh -c "{lanzar_propagador}"')
         tiempo = t.tocvalue()
-        
+
         self.tiempo_computo = tiempo
+        
+        cubo = self.__obtener_datos()
+        self.cubo_propagacion = cubo
+        
+        return cubo
+    
+    def lanzar_propagacion_python(self, cpml=[]):
+        vel = self.modelo_vel.T
+        
+        if type(cpml) == "str" and cpml.lower() == "all":
+            layers = ["left", "right", "top", "bottom"]
+        else:
+            layers = cpml
+        
+        # Lanzamiento propagador python
+        cubo = python_propagator(vel, self.sx, self.sz, self.dx*1000, self.dz*1000, 
+                              self.dt, self.nt, 10e3, self.fq, self.fuente,
+                              layers)
+        
+        cubo = np.transpose(cubo, (1,0,2))
+        
+        self.calculo_gradiente(cubo)
+        self.cubo_propagacion = cubo
+        
+        return cubo
         
     def __export_velocity(self):
         modelo = self.modelo_vel
@@ -135,8 +165,10 @@ class PropagacionAcustica:
         data.T.tofile(output_file)
         output_file.close()
     
-    def obtener_datos(self):
-        
+    def __obtener_datos(self, tipo_propagacion):
+        '''
+        Esta función crea el cubo de datos resultado de la propagación de C
+        '''
         filename = os.path.join(self.path_propagador, "propagacion2.bin")
 
         with open(filename, "rb") as fid:
@@ -149,7 +181,6 @@ class PropagacionAcustica:
             cubo = crear_cubo(data, self.nx, self.nz, self.nt)
         
         self.calculo_gradiente(cubo)      
-        self.cubo_propagacion = cubo
         
         return cubo
     
@@ -467,6 +498,7 @@ class PropagacionAcustica:
             "t01": self.snap_time[0],
             "t02": self.snap_time[1],
             "t03": self.snap_time[2],
+            "Propagador": "C",
             }
         
         df = pd.DataFrame(parametros_basicos, index=[0])
@@ -476,7 +508,7 @@ class PropagacionAcustica:
         
         df.to_csv(archivo_csv, index=False)
     
-#%%
+#%% Función njit
 @njit
 def crear_cubo(datos: np.array, nx, nz, nt):
     # El cubo queda con dimensiones Nz * Nx * Nt

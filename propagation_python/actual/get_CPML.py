@@ -104,37 +104,21 @@ def get_CPML(CPMLimit, R, Vcpml, Nx, Nz, dx, dz, dt, frec):
     b_z_half = np.zeros((Nz-1))
     a_z_half = np.zeros((Nz-1))
     
-    # Parte inferior, solo toma la zona CPML
-    for i in range(Nz-CPMLimit, Nz):
-        d_z[i] = d0_z*Vcpml*((z[Nz-i]/D_pml_z)**2)    # Damping en función de x
-        b_z[i] = np.exp(-(d_z[i] + alpha_z[Nz-i]) * dt)
-        a_z[i] = d_z[i]/(d_z[i] + alpha_z[Nz-i]) * (b_z[i]-1)
+    # Parte inferior, solo toma la zona CPML          
+    for i in range(Nz-CPMLimit-1, Nz):
+        d_z[i] = d0_z*Vcpml*((z[Nz-i-1]/D_pml_z)**2)    # Damping en función de x
+        b_z[i] = np.exp(-(d_z[i] + alpha_z[Nz-i-1]) * dt)
+        a_z[i] = d_z[i]/(d_z[i] + alpha_z[Nz-i-1]) * (b_z[i]-1)
         
         # Condición de la frontera de la zona CPML
-        if i == Nz-CPMLimit:
+        if i + 1 == Nz-CPMLimit:
             d_z_half[i-1] = 0
             b_z_half[i-1] = 0
             a_z_half[i-1] = 0
         else:
-            d_z_half[i-1] = d0_z*Vcpml*((z_half[Nz-i]/D_pml_z)**2)
-            b_z_half[i-1] = np.exp(-(d_z_half[i-1] + alpha_z_half[Nz-i]) * dt)
-            a_z_half[i-1] = d_z_half[i-1]/(d_z_half[i-1] + alpha_z_half[Nz-i]) * (b_z_half[i-1]-1)
-            
-    # # Parte inferior, solo toma la zona CPML
-    # for i in range(Nz-CPMLimit-1, Nz):
-    #     d_z[i] = d0_z*Vcpml*((z[Nz-i-1]/D_pml_z)**2)    # Damping en función de x
-    #     b_z[i] = np.exp(-(d_z[i] + alpha_z[Nz-i-1]) * dt)
-    #     a_z[i] = d_z[i]/(d_z[i] + alpha_z[Nz-i-1]) * (b_z[i]-1)
-        
-    #     # Condición de la frontera de la zona CPML
-    #     if i + 1 == Nz-CPMLimit:
-    #         d_z_half[i-1] = 0
-    #         b_z_half[i-1] = 0
-    #         a_z_half[i-1] = 0
-    #     else:
-    #         d_z_half[i-1] = d0_z*Vcpml*((z_half[Nz-i-1]/D_pml_z)**2)
-    #         b_z_half[i-1] = np.exp(-(d_z_half[i-1] + alpha_z_half[Nz-i-1]) * dt)
-    #         a_z_half[i-1] = d_z_half[i-1]/(d_z_half[i-1] + alpha_z_half[Nz-i-1]) * (b_z_half[i-1]-1)
+            d_z_half[i-1] = d0_z*Vcpml*((z_half[Nz-i-1]/D_pml_z)**2)
+            b_z_half[i-1] = np.exp(-(d_z_half[i-1] + alpha_z_half[Nz-i-1]) * dt)
+            a_z_half[i-1] = d_z_half[i-1]/(d_z_half[i-1] + alpha_z_half[Nz-i-1]) * (b_z_half[i-1]-1)
             
     # Parte superior, solo toma la zona CPML
     for i in range(CPMLimit+1):

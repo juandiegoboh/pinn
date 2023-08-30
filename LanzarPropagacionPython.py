@@ -102,7 +102,6 @@ for i, t in enumerate(t_index):
 fig.tight_layout()
 plt.show()
 
-
 #%%
 campo = P[:,:,320]
 
