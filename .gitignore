@@ -5,6 +5,7 @@ __pycache__/
 
 # Elementos tipo python
 !*.py
+!*.ipynb
 !.gitignore
 # Elementos de la propagacion en C
 !/propagation-cpml-C/

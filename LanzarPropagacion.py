@@ -73,7 +73,7 @@ propagacion = PropagacionAcustica(fq, nz, nx, nt, ax_spec, az_spec, sx, sz, dh,
                                   dt, tipo_fuente, n_abs, alpha_true1, path_velocity)
 
 # cubo = propagacion.lanzar_propagacion_C()
-cubo = propagacion.lanzar_propagacion_python(cpml=["left", "right", "bottom"])
+cubo = propagacion.lanzar_propagacion_python(cpml=["left", "right", "top"])
 
 #%% Obtener snapshots
 t01 = 0.1
@@ -90,12 +90,12 @@ componentes = propagacion.componentes_campo([t01, t02, t_la], save=True, export=
 coordenadas = propagacion.coordenadas_campo(path_export=path_wavefield)
 
 #%% Ver modelo 3D
-propagacion.modelo3D(cubo)
+# propagacion.modelo3D(cubo)
 
 #%% Sismograma prueba
 
 figure = plt.figure()
-plt.plot(cubo[1, 1, :])
+plt.plot(cubo[10, 10, :])
 plt.show()
 
 #%% Sismogramas

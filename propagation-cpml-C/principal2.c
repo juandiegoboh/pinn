@@ -17,11 +17,11 @@ int main()
   float c_max = 0.0;
   float *c = (float *)calloc(Nx * Nz, sizeof(float));
 
-  float dh = 3.3333333333333335;
+  float dh = 3.333333333;
   float fq = 16; // Play for dispersion from 10 to 100
   float dt = 0.0;
 
-  int borde = 20.0; // amount of CPML grid points
+  int borde = 30; // amount of CPML grid points
   CPML *cpml = malloc(sizeof(CPML));
   cpml->n_cpml_x = borde;
   cpml->n_cpml_z = borde;
@@ -30,7 +30,7 @@ int main()
   cpml->kappa_max = 1;        // for the definition of the constants
   cpml->CPML_X_MAX = true;    // true                //turn cpml layers on (true) or off (false)
   cpml->CPML_X_MIN = true;    // true
-  cpml->CPML_Z_MAX = false;   // false
+  cpml->CPML_Z_MAX = true;    // false
   cpml->CPML_Z_MIN = true;    // true
 
   for (i = 0; i < Nx; i++)

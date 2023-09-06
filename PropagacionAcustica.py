@@ -124,8 +124,11 @@ class PropagacionAcustica:
 
         self.tiempo_computo = tiempo
         
+        # Se leen los datos creados con el propagador de C
         cubo = self.__obtener_datos()
         self.cubo_propagacion = cubo
+        
+        self.tipo_propagador = "C"
         
         return cubo
     
@@ -138,14 +141,19 @@ class PropagacionAcustica:
             layers = cpml
         
         # Lanzamiento propagador python
+        t.tic()
         cubo = python_propagator(vel, self.sx, self.sz, self.dx*1000, self.dz*1000, 
                               self.dt, self.nt, 10e3, self.fq, self.fuente,
                               layers)
-        
+        tiempo = t.tocvalue()
+
         cubo = np.transpose(cubo, (1,0,2))
-        
-        self.calculo_gradiente(cubo)
         self.cubo_propagacion = cubo
+        
+        self.tiempo_computo = tiempo
+
+        self.__calculo_gradiente(cubo)        
+        self.tipo_propagador = "Python"
         
         return cubo
         
@@ -167,7 +175,8 @@ class PropagacionAcustica:
     
     def __obtener_datos(self, tipo_propagacion):
         '''
-        Esta función crea el cubo de datos resultado de la propagación de C
+        Esta función crea el cubo de datos resultado de la propagación de C y 
+        acciona la funcion de calculo de gradiente.
         '''
         filename = os.path.join(self.path_propagador, "propagacion2.bin")
 
@@ -180,7 +189,7 @@ class PropagacionAcustica:
         
             cubo = crear_cubo(data, self.nx, self.nz, self.nt)
         
-        self.calculo_gradiente(cubo)      
+        self.__calculo_gradiente(cubo)      
         
         return cubo
     
@@ -233,7 +242,7 @@ class PropagacionAcustica:
         
         self.snap_time = time_list
     
-    def calculo_gradiente(self, data):
+    def __calculo_gradiente(self, data):
         grad_z, grad_x = np.gradient(data, axis=(0, 1))
         
         self.grad_z = grad_z
@@ -459,6 +468,7 @@ class PropagacionAcustica:
             "Tamaño de la celda": f'{self.dh:.4f} m',
             "Coordenada x fuente": f'{self.sx*self.dx*1000} m',
             "Coordenada z fuente": f'{self.sz*self.dz*1000} m',
+            "Tipo propagador": f'{self.tipo_propagador}'
         }
         
         tabla.add_column("Parámetros", list(parametros_log.keys()))
@@ -498,7 +508,6 @@ class PropagacionAcustica:
             "t01": self.snap_time[0],
             "t02": self.snap_time[1],
             "t03": self.snap_time[2],
-            "Propagador": "C",
             }
         
         df = pd.DataFrame(parametros_basicos, index=[0])
