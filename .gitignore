@@ -19,7 +19,7 @@ __pycache__/
 !.gitignore
 # Elementos de la propagacion en C
 !/propagation-cpml-C/
-# !/experimentos/
+!/experimentos/
 !/propagation-cpml-C-original/
 !/propagation_python/
 

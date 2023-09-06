@@ -1,0 +1,21 @@
+Parámetros de la propagación 19-06-2023 06:47:57 PM
+
++-------------------------+----------------------+
+|        Parámetro        |        Valor         |
++-------------------------+----------------------+
+| Frecuencia de la fuente |        15 Hz         |
+|      Tipo de fuente     |        ricker        |
+|       Puntos en Z       |         150          |
+|       Puntos en X       |         450          |
+|       Puntos en t       |         500          |
+|       Tamaño en X       |       1500.0 m       |
+|       Tamaño en Z       |       500.0 m        |
+|      Duración total     |      0.3928 seg      |
+|    Nodos absorbentes    |          15          |
+|    Número de fuentes    |          1           |
+|  Número de sismómetros  |          20          |
+|    Tamaño de la celda   |       0.0033 m       |
+| Coordenada de la fuente | x:500.0 m, z:250.0 m |
++-------------------------+----------------------+
+
+Tiempo de propagación 7.9935 segundos

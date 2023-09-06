@@ -1,0 +1,22 @@
+Parámetros de la propagación, 14-07-2023 08:11:04 PM
+
++-------------------------+--------------+
+| Parámetros              |    Valor     |
++-------------------------+--------------+
+| Frecuencia de la fuente |    16 Hz     |
+| Tipo de fuente          | gaussian_neg |
+| Puntos en Z             |     150      |
+| Puntos en X             |     450      |
+| Puntos en t             |     650      |
+| Tamaño en X             |   1500.0 m   |
+| Tamaño en Z             |   500.0 m    |
+| Duración total          |  0.5107 seg  |
+| Nodos absorbentes       |      20      |
+| Número de fuentes       |      1       |
+| Número de sismómetros   |      20      |
+| Tamaño de la celda      |   0.0033 m   |
+| Coordenada x fuente     |   500.0 m    |
+| Coordenada z fuente     |   250.0 m    |
++-------------------------+--------------+
+
+Tiempo de propagación 8.9682 segundos

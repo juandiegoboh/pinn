@@ -1,0 +1,1 @@
+Este experimento tuvo en cuenta un entrenamiento con los lambdas utilizados por el autor Rash.
