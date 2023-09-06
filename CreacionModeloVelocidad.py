@@ -64,6 +64,14 @@ class ModeloVelocidad:
                     
         self.modelo = velocidades
         return velocidades
+
+    def velocidad_constante(self, bg_vel):
+        
+        # Crear matriz de velocidad
+        velocidades = np.ones((self.nz, self.nx), dtype="float32")*bg_vel
+                    
+        self.modelo = velocidades
+        return velocidades
     
     
     def cargar_modelo_rash(self, path_orig, size_x, size_z, order=1, mode='edge'):

@@ -1,15 +1,4 @@
 /*
-# /Propagation-cuda/
-# __pycache__/
-# X_pde.npy
-
-# .vscode
-# .vscode/settings.json
-
-# # Binarios resultado de la propagacion en C
-# /propagation-cpml-C/*.bin
-# /propagation-cpml-C-original/*.bin
-
 *.pyc
 __pycache__/
 
